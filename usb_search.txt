@@ -1,0 +1,134 @@
+17.02.2020
+
+using Microsoft.Win32;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security;
+using System.Text;
+using System.Threading.Tasks;
+
+
+namespace USBOne
+{
+    class Program
+    {
+        public static void GetNext(RegistryKey rk)
+        {
+            foreach (string cv in rk.GetValueNames())
+            {
+                Console.Write("Value - ");
+                Console.WriteLine(cv);
+            }
+
+            foreach (string s in rk.GetSubKeyNames())
+            {
+                try
+                {
+                    Console.WriteLine(s);
+                    GetNext(rk.OpenSubKey(s));
+
+                }
+                catch (SecurityException e)
+                {
+                    Console.WriteLine("Security Exception:\n\n{0}", e.Message);
+                }
+
+            }
+        }
+        static void showAllUSB()
+        {
+            RegistryKey hklm = Registry.LocalMachine;
+            RegistryKey hkSystem = hklm.OpenSubKey("System")
+                .OpenSubKey("CurrentControlSet")
+                .OpenSubKey("Enum")
+                .OpenSubKey("USBSTOR");
+            GetNext(hkSystem);
+            //string login = hkSystem.GetValue("name").ToString();
+            //Console.WriteLine(login);
+            hkSystem.Close();
+
+            //HKLM\SYSTEM\CurrentControlSet\Enum\USBSTOR
+        }
+        static void my(string inputString)
+        {
+            Console.WriteLine("Uknowned komand '"+inputString+"'");
+        }
+
+        static string parseVidFromDeviceID(string deviceId)
+        {
+            string[] splitDeviceId = deviceId.Split('\\');
+            string Prod;
+            //Разбиваем строку на несколько частей.
+            //Каждая часть отделяется по символу &
+            string[] splitProd = splitDeviceId[1].Split('&');
+
+            Prod = splitProd[0].Replace("VID", ""); ;
+            Prod = Prod.Replace("_", " ");
+            return Prod;
+        }
+        static string parsePidFromDeviceID(string deviceId)
+        {
+            string[] splitDeviceId = deviceId.Split('\\');
+            string Prod;
+            //Разбиваем строку на несколько частей.
+            //Каждая часть отделяется по символу &
+            string[] splitProd = splitDeviceId[1].Split('&');
+
+            Prod = splitProd[1].Replace("PID_", ""); ;
+            Prod = Prod.Replace("_", " ");
+            return Prod;
+        }
+        static void refreshUSB()
+        {
+            string PNPDeviceID = string.Empty;
+
+            //Получение списка USB накопителей
+            foreach (System.Management.ManagementObject drive in
+            new System.Management.ManagementObjectSearcher(
+            "select * from Win32_USBHub where Caption='Запоминающее устройство для USB'").Get())
+            {
+                PNPDeviceID = drive["PNPDeviceID"].ToString().Trim();
+                //Получение Ven устройства
+                Console.WriteLine("VID= " +
+                parseVidFromDeviceID(drive["PNPDeviceID"].ToString().Trim()).Trim());
+
+                //Получение Prod устройства
+                Console.WriteLine("PID= " +
+                parsePidFromDeviceID(drive["PNPDeviceID"].ToString().Trim()).Trim());
+
+                //Получение Серийного номера устройства
+                string[] splitDeviceId = drive["PNPDeviceID"].ToString().Trim().Split('\\');
+               Console.WriteLine("Серийный номер= " + splitDeviceId[2].Trim());
+
+                //Разделение списка устройств пустой строкой
+                Console.WriteLine("\n");
+            }
+        }
+        static void Main(string[] args)
+        {
+            string inputString = "no";
+            while (inputString != "quit")
+            {
+                inputString = Console.ReadLine();
+                refreshUSB();
+                switch(inputString)
+                {
+                    case "exit":
+                        Console.WriteLine("Exiting...");
+                        Environment.Exit(0);
+                        break;
+                    case "all":
+                        showAllUSB();
+                        break;
+                    default:
+                        my(inputString);
+                        break;
+                }
+               
+            }
+           
+        }
+    }
+}
+
